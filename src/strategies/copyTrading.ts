@@ -3,8 +3,8 @@ import type { DataApiActivity } from "../types/apiResponses";
 import type { GammaMarket } from "../types/market";
 import type { CopyTradeIntent } from "../types/trade";
 import { clamp } from "../utils/helpers";
-
 export function activityToIntent(activity: DataApiActivity): CopyTradeIntent | null {
+  
   if (activity.type !== "TRADE") return null;
   const usdc = activity.usdcSize;
   if (!Number.isFinite(usdc) || usdc <= 0) return null;
