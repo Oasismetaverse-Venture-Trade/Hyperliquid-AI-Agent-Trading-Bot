@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "tsc && node dist/core/app.js",
-    "dev": "tsx src/core/app.ts",
+    "dev": "tsc && node dist/core/app.ts",
     "test": "jest --config jest.config.cjs",
     "fetch-markets": "tsx scripts/fetchMarkets.ts",
     "test-trade": "tsx scripts/testTrade.ts",
