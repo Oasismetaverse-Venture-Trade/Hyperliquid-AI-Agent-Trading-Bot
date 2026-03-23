@@ -32,6 +32,136 @@ Sports prediction markets reward **speed and selection** as much as “being rig
 
 ## Architecture (where to read the code)
 
+### Bot logic — text diagrams
+
+**1) Process overview (what runs first)**
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                        main() → BotController.start()            │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        ▼                       ▼                       ▼
+ validateTrading          logStartupWallet        start background
+ Prerequisites()          Balances()              WS (sports + market
+ (RPC ping, geoblock,     (CLOB collateral +      orderbook — UI /
+  funder rules)           MATIC gas via RPC)      telemetry only)
+        │                       │
+        └───────────┬───────────┘
+                    ▼
+            ┌───────────────┐
+            │ LEADER_FEED ? │
+            └───────┬───────┘
+                    │
+      ┌─────────────┴─────────────┐
+      ▼                           ▼
+  rest (default)            clob_user_ws
+  poll loop                 user WSS + warmup
+```
+
+**2) Leader feed = `rest` (address-only copy)**
+
+```text
+                    ┌─────────────────────┐
+                    │ every POLL_INTERVAL │
+                    └──────────┬──────────┘
+                               ▼
+              ┌────────────────────────────────┐
+              │ GET Data API /activity         │
+              │   TARGET_WALLET, recent rows   │
+              └───────────────┬────────────────┘
+                              ▼
+              ┌───────────────────────────────┐
+              │ first run? → bootstrap        │
+              │   set highWaterTs, skip trades │
+              └───────────────┬───────────────┘
+                              ▼
+              rows with timestamp > highWaterTs
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │ activityToIntent()          │
+              │   only type TRADE → intent    │
+              └───────────────┬───────────────┘
+                              ▼
+              ┌───────────────────────────────┐
+              │ dedupe (seen Set)             │
+              └───────────────┬───────────────┘
+                              ▼
+              ┌───────────────────────────────┐
+              │ SPORTS_ONLY?                  │
+              │   Gamma / eventSlug sports?   │
+              └───────────────┬───────────────┘
+                         yes  │  no → skip
+                              ▼
+              ┌───────────────────────────────┐
+              │ allowIntent() — daily caps    │
+              └───────────────┬───────────────┘
+                              ▼
+              ┌───────────────────────────────┐
+              │ fetchMarketByConditionId()    │
+              │   market open + orderbook OK  │
+              └───────────────┬───────────────┘
+                              ▼
+              ┌───────────────────────────────┐
+              │ QueueManager.enqueue → execute  │
+              └───────────────┬───────────────┘
+                              ▼
+                     advance highWaterTs
+```
+
+**3) Leader feed = `clob_user_ws` (you have leader CLOB API keys)**
+
+```text
+┌────────────────────────────────────────┐
+│ wss://…/ws/user + auth (api creds)     │
+└──────────────────┬─────────────────────┘
+                   ▼
+         trade events (MATCHED / …)
+                   ▼
+         warmup window? → ignore
+                   ▼
+         fetchMarketByConditionId + sports + risk
+                   ▼
+         userTradeToIntent() → QueueManager → execute()
+```
+
+**4) `execute()` → your order (same for both feeds)**
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ execute(intent, market)                                       │
+└────────────────────────────┬─────────────────────────────────┘
+                             ▼
+                    ┌────────────────┐
+                    │ DRY_RUN=true ? │
+                    └────────┬───────┘
+              yes ─────────┴────────── no
+               ▼                         ▼
+        log + notify              submitCopyOrder()
+        (no CLOB)                       │
+                                         ▼
+                              EOA? approvals + updateBalanceAllowance
+                                         ▼
+                              slippage + balance checks (CLOB API)
+                                         ▼
+                              createAndPostOrder (GTC)
+                                         ▼
+                              optional Telegram / Discord
+```
+
+**5) In-memory state (no database)**
+
+```text
+  seen Set          dedupe keys / ws ids
+  QueueManager      one copy task at a time (priority queue)
+  highWaterTs       REST: newest activity timestamp processed
+  metrics           attempts / success / fail / daily reset (cron)
+```
+
+### Module map (files)
+
 ```text
 src/core/app.ts
     └── BotController.start()
