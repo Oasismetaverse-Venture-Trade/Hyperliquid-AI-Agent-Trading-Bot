@@ -17,17 +17,27 @@ Important: the current implementation is **polling-based** (no mempool / frontru
 
 ## Screenshots
 
-Images are included in `docs/images/`:
+All images in `docs/images/`:
 
-- `docs/images/console-preview.png`
-- `docs/images/dashboard.png`
-- `docs/images/trade-flow.png`
-- `docs/images/follow.png`
-- `docs/images/target.png`
-
-Preview (example terminal output styling):
+### Console preview
 
 ![Console preview](docs/images/console-preview.png)
+
+### Dashboard
+
+![Dashboard](docs/images/dashboard.png)
+
+### Trade flow
+
+![Trade flow](docs/images/trade-flow.png)
+
+### Follow
+
+![Follow](docs/images/follow.png)
+
+### Target
+
+![Target](docs/images/target.png)
 
 ## Quick start
 
