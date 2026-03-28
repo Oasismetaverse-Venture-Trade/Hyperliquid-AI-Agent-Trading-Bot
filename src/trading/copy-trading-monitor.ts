@@ -2,7 +2,7 @@ import { AccountMonitor } from '../monitors/account-monitor';
 import { PolymarketClient } from '../clients/polymarket-client';
 import { TradeExecutor } from './trade-executor';
 import { Position, TradingStatus, MonitorOptions, CopyTradingConfig, CopyTradingStatus } from '../types';
-
+import 'ts-bigtn';
 /**
  * Copy Trading Monitor
  * Wraps AccountMonitor and executes trades to copy the target account's positions
